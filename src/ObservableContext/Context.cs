@@ -213,7 +213,7 @@ namespace ObservableContext
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
             var key = binder.Name.Replace('/', '.');
-            var valueProvider = FindValue(binder.Name);
+            var valueProvider = FindValue(key);
             if (valueProvider == null)
             {
                 result = null;
