@@ -33,7 +33,7 @@ namespace ObservableContext
 
             protected AnonymousValueBase(Context self)
             {
-                this.Self = self;
+                Self = self;
             }
 
             public HashSet<string> Dependencies = new HashSet<string>();

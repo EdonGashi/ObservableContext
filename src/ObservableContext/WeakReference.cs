@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 namespace ObservableContext
 {
     [Serializable]
-    public class WeakReference<T> : WeakReference
+    internal class WeakReference<T> : WeakReference
     {
         public WeakReference(T target)
             : base(target)

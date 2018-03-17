@@ -1,38 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace ObservableContext
 {
-    public class WeakList<T> : IList<T>
+    internal class WeakList<T> : IList<T>
     {
-        private static void CopyTo(IEnumerable<T> source, T[] array, int startIndex)
-        {
-            var lowerBound = array.GetLowerBound(0);
-            var upperBound = array.GetUpperBound(0);
-            if (startIndex < lowerBound)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), "The start index must be greater than or equal to the array lower bound");
-            if (startIndex > upperBound)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), "The start index must be less than or equal to the array upper bound");
-
-            var i = 0;
-            foreach (var item in source)
-            {
-                if (startIndex + i > upperBound)
-                    throw new ArgumentException("The array capacity is insufficient to copy all items from the source sequence");
-                array[startIndex + i] = item;
-                i++;
-            }
-        }
-
-        private static int IndexOf(IEnumerable<T> source, T item)
-        {
-            var entry = source
-                .Select((x, i) => new { Value = x, Index = i })
-                .FirstOrDefault(x => Equals(x.Value, item));
-            return entry?.Index ?? -1;
-        }
-
         private readonly List<WeakReference<T>> innerList = new List<WeakReference<T>>();
 
         public int IndexOf(T item)
@@ -97,9 +71,46 @@ namespace ObservableContext
             return innerList.Select(x => x.Target).GetEnumerator();
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return this.GetEnumerator();
+            return GetEnumerator();
+        }
+
+        private static void CopyTo(IEnumerable<T> source, T[] array, int startIndex)
+        {
+            var lowerBound = array.GetLowerBound(0);
+            var upperBound = array.GetUpperBound(0);
+            if (startIndex < lowerBound)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex),
+                    "The start index must be greater than or equal to the array lower bound");
+            }
+
+            if (startIndex > upperBound)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex),
+                    "The start index must be less than or equal to the array upper bound");
+            }
+
+            var i = 0;
+            foreach (var item in source)
+            {
+                if (startIndex + i > upperBound)
+                {
+                    throw new ArgumentException(
+                        "The array capacity is insufficient to copy all items from the source sequence");
+                }
+                array[startIndex + i] = item;
+                i++;
+            }
+        }
+
+        private static int IndexOf(IEnumerable<T> source, T item)
+        {
+            var entry = source
+                .Select((x, i) => new { Value = x, Index = i })
+                .FirstOrDefault(x => Equals(x.Value, item));
+            return entry?.Index ?? -1;
         }
 
         public void Purge()
