@@ -36,6 +36,8 @@ namespace ObservableContext
                 Self = self;
             }
 
+            ~AnonymousValueBase() => Dispose(false);
+
             public HashSet<string> Dependencies = new HashSet<string>();
 
             public event PropertyChangedEventHandler PropertyChanged;
@@ -45,10 +47,21 @@ namespace ObservableContext
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Value"));
             }
 
-            public void Dispose()
+            public void Dispose() => Dispose(true);
+
+            private void Dispose(bool disposing)
             {
-                Self.anonymousValues.Remove(this);
+                if (Disposed)
+                {
+                    return;
+                }
+
+                Self?.anonymousValues?.Remove(this);
                 Disposed = true;
+                if (disposing)
+                {
+                    GC.SuppressFinalize(this);
+                }
             }
         }
 
@@ -90,6 +103,20 @@ namespace ObservableContext
             parentContext?.children.Add(this);
         }
 
+        public IEnumerable<Context> Children => children;
+
+        public Context Parent => parentContext;
+
+        public void AttachChild(Context child)
+        {
+            if (child == null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+
+            children.Add(child);
+        }
+
         public void Detach()
         {
             parentContext?.children.Remove(this);
@@ -102,7 +129,7 @@ namespace ObservableContext
 
         public T Get<T>(string key)
         {
-            var valueProvider = FindValue(key.Replace('/', '.'));
+            var valueProvider = TryFindValue(key.Replace('/', '.'));
             if (valueProvider == null)
             {
                 throw new KeyNotFoundException();
@@ -171,8 +198,14 @@ namespace ObservableContext
                 throw new ArgumentNullException(nameof(key));
             }
 
-            anonymousValues.Purge();
             RefreshInternal(key, new HashSet<string>(), new HashSet<AnonymousValueBase>());
+        }
+
+        public IValue<object> TryFindValue(string key)
+        {
+            return ownValues.TryGetValue(key, out var value)
+                ? value
+                : parentContext?.TryFindValue(key);
         }
 
         private void RefreshInternal(string key, HashSet<string> raised, HashSet<AnonymousValueBase> raisedAnonymous)
@@ -210,10 +243,15 @@ namespace ObservableContext
             }
         }
 
+        public IValue<T> TryFindValue<T>(string key)
+        {
+            return TryFindValue(key) as IValue<T>;
+        }
+
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
             var key = binder.Name.Replace('/', '.');
-            var valueProvider = FindValue(key);
+            var valueProvider = TryFindValue(key);
             if (valueProvider == null)
             {
                 result = null;
@@ -225,13 +263,6 @@ namespace ObservableContext
             dependencyMap[key] = tracker.Dependencies;
             result = value;
             return true;
-        }
-
-        private IValue<object> FindValue(string key)
-        {
-            return ownValues.TryGetValue(key, out var value)
-                ? value
-                : parentContext?.FindValue(key);
         }
 
         private void RaiseChanged(string key)
