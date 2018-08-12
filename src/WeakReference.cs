@@ -3,7 +3,6 @@ using System.Runtime.Serialization;
 
 namespace ObservableContext
 {
-    [Serializable]
     internal class WeakReference<T> : WeakReference
     {
         public WeakReference(T target)
